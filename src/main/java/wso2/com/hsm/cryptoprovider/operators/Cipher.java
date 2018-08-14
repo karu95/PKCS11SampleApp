@@ -17,8 +17,6 @@ public class Cipher {
         encryptionMechanism.setParameters(encryptInitializationVectorParameters);
         session.encryptInit(encryptionMechanism, encryptionKey);
         byte[] encryptedData = session.encrypt(dataToBeEncrypted);
-
-        System.out.println("Encrypted text :" + new String(encryptedData));
         return encryptedData;
     }
 

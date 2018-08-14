@@ -1,20 +1,25 @@
 package wso2.com.hsm.util;
 
-import iaik.pkcs.pkcs11.*;
+import iaik.pkcs.pkcs11.Info;
+import iaik.pkcs.pkcs11.Module;
+import iaik.pkcs.pkcs11.Session;
+import iaik.pkcs.pkcs11.TokenException;
 import iaik.pkcs.pkcs11.objects.AESSecretKey;
 import iaik.pkcs.pkcs11.objects.RSAPrivateKey;
 import iaik.pkcs.pkcs11.objects.RSAPublicKey;
 import iaik.pkcs.pkcs11.wrapper.PKCS11Constants;
+import wso2.com.hsm.cryptoprovider.keyhandlers.KeyGenerator;
 import wso2.com.hsm.cryptoprovider.keyhandlers.KeyRetriever;
-import wso2.com.hsm.cryptoprovider.operators.HashGenerator;
-import wso2.com.hsm.cryptoprovider.operators.SignatureHandler;
+import wso2.com.hsm.cryptoprovider.operators.Cipher;
 import wso2.com.hsm.cryptoprovider.util.SessionInitiator;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.Scanner;
 
 public class Main {
+    private static Module pkcs11Module;
     /*
     @Override
     public void start(Stage primaryStage) throws Exception{
@@ -34,12 +39,25 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        Module pkcs11Module = Module.getInstance(properties.getProperty("library"));
+        pkcs11Module = Module.getInstance(properties.getProperty("library"));
         pkcs11Module.initialize(null);
 
         Info info = pkcs11Module.getInfo();
         System.out.println(info);
 
+        String initialPromptText = "Available Cryptographic Operations \n" +
+                "1. Key Generation \n" +
+                "2. Encryption \n" +
+                "3. Decryption \n" +
+                "4. Sign \n" +
+                "5. Verify \n" +
+                "6. Key wrap \n" +
+                "7. Key unwrap \n" +
+                "8. Hash \n" +
+                "Enter No. of required operation : ";
+
+        provideOperation(getInput(initialPromptText));
+        /*
         Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
         //System.out.println(session.getSessionInfo());
         //KeyGenerator.generateAESKey(session, "Mevan3", false, false,true,16L);
@@ -87,6 +105,10 @@ public class Main {
         boolean verify = SignatureHandler.fullVerify(session, FileHandler.readFile("input.txt"), signature, PKCS11Constants.CKM_SHA1_RSA_PKCS, publicKey);
 
         System.out.println(verify);
+
+
+
+
         /*
         byte[] encryptionInitializationVector = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0};
@@ -214,5 +236,123 @@ public class Main {
 
         session.findObjectsFinal();
         */
+    }
+
+    private static void provideOperation(String input) throws TokenException, IOException {
+        switch (Integer.valueOf(input)) {
+            case 1:
+                generateKey();
+                break;
+            case 2:
+                encrypt();
+                break;
+            case 3:
+                decrypt();
+                break;
+            case 4:
+                sign();
+                break;
+            default:
+                System.out.println("Invalid input!");
+                break;
+        }
+    }
+
+    private static void encrypt() throws IOException, TokenException {
+        String encryptPrompt = "Select encryption mechanism \n" +
+                "1. AES encryption \n" +
+                "Enter no. of encryption type : ";
+        String input = getInput(encryptPrompt);
+        if (input.equals("1")) {
+            String pathPrompt = "Path to file to be encrypted = ";
+            String path = getInput(pathPrompt);
+            String keyLabelPrompt = "Label of the encryption key = ";
+            String keyLabel = getInput(keyLabelPrompt);
+            Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
+            byte[] dataToEncrypt = FileHandler.readFile(path);
+            AESSecretKey secretKeyTemplate = new AESSecretKey();
+            secretKeyTemplate.getLabel().setCharArrayValue(keyLabel.toCharArray());
+            AESSecretKey secretKey = (AESSecretKey) KeyRetriever.retrieveKey(session, secretKeyTemplate);
+            byte[] initializationVector = new byte[16];
+            byte[] encryptedData = Cipher.encryptAES(session, dataToEncrypt, secretKey, initializationVector, PKCS11Constants.CKM_AES_CBC_PAD);
+            //FileHandler.saveFile("encrypted/", encryptedData);
+            System.out.println("Encrypted text : " + new String(encryptedData));
+        } else {
+            System.out.println("Invalid input");
+        }
+    }
+
+    private static void generateKey() throws TokenException {
+        String generateKeyPromptText = "Select key type \n" +
+                "1. RSA \n" +
+                "2. AES \n" +
+                "Enter no. of key type : ";
+        String input = getInput(generateKeyPromptText);
+        if (input.equals("1")) {
+            RSAPublicKey publicKeyTemplate = new RSAPublicKey();
+            RSAPrivateKey privateKeyTemplate = new RSAPrivateKey();
+            String templatePromptText = "Provide RSA key pair details as sample given. \n" +
+                    "Sample input : label length(1024-2048) \n" +
+                    "Input : ";
+            byte[] publicExponentBytes = {0x01, 0x00, 0x001};
+            publicKeyTemplate.getPublicExponent().setByteArrayValue(publicExponentBytes);
+            input = getInput(templatePromptText);
+            String[] inputs = input.split(" ");
+            if (inputs.length == 2) {
+                privateKeyTemplate.getLabel().setCharArrayValue(inputs[0].toCharArray());
+                publicKeyTemplate.getLabel().setCharArrayValue(inputs[0].toCharArray());
+
+                publicKeyTemplate.getModulusBits().setLongValue(Long.valueOf(inputs[1]));
+                Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
+                boolean generated = KeyGenerator.generateRSAKeyPair(session, PKCS11Constants.CKM_RSA_PKCS_KEY_PAIR_GEN, privateKeyTemplate, publicKeyTemplate);
+                if (generated) {
+                    System.out.println("RSA key pair successfully generated!");
+                } else {
+                    System.out.println("RSA key pair generation failed!");
+                }
+                SessionInitiator.closeSession(0);
+            }
+        } else if (input.equals("2")) {
+            AESSecretKey secretKeyTemplate = new AESSecretKey();
+            String templatePromptText = "Provide AES key details as sample given. \n" +
+                    "Sample input : label length(16-32) \n" +
+                    "Input : ";
+            secretKeyTemplate.getPrivate().setBooleanValue(Boolean.TRUE);
+            secretKeyTemplate.getSensitive().setBooleanValue(Boolean.TRUE);
+            secretKeyTemplate.getExtractable().setBooleanValue(Boolean.FALSE);
+            input = getInput(templatePromptText);
+            String[] inputs = input.split(" ");
+            if (inputs.length == 2) {
+                secretKeyTemplate.getLabel().setCharArrayValue(inputs[0].toCharArray());
+                secretKeyTemplate.getValueLen().setLongValue(new Long(inputs[1]));
+                Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
+                boolean generated = KeyGenerator.generateAESKey(session, secretKeyTemplate);
+                if (generated) {
+                    System.out.println("AES key successfully generated!");
+                } else {
+                    System.out.println("AES key generation failed!");
+                }
+                SessionInitiator.closeSession(0);
+            }
+        } else {
+            System.out.println("Invalid input!");
+        }
+    }
+
+    private static void decrypt() {
+
+    }
+
+    private static void sign() {
+
+    }
+
+
+    private static String getInput(String promptText) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print(promptText);
+        System.out.println();
+
+        return scanner.nextLine();
     }
 }

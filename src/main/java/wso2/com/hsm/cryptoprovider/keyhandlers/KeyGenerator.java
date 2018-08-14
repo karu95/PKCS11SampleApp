@@ -38,6 +38,8 @@ public class KeyGenerator {
             privateKeyTemplate.getToken().setBooleanValue(Boolean.TRUE);
             privateKeyTemplate.getPrivate().setBooleanValue(Boolean.TRUE);
 
+            publicKeyTemplate.getToken().setBooleanValue(Boolean.TRUE);
+
             publicKeyTemplate.getVerify()
                     .setBooleanValue(mechanismInfo.isVerify());
             publicKeyTemplate.getVerifyRecover()
@@ -66,7 +68,8 @@ public class KeyGenerator {
         return generated;
     }
 
-    public static void generateAESKey(Session session, AESSecretKey secretKeyTemplate) throws TokenException {
+    public static boolean generateAESKey(Session session, AESSecretKey secretKeyTemplate) {
+        boolean generated = false;
         Mechanism keyMechanism = Mechanism.get(PKCS11Constants.CKM_AES_KEY_GEN);
         secretKeyTemplate.getEncrypt().setBooleanValue(Boolean.TRUE);
         secretKeyTemplate.getDecrypt().setBooleanValue(Boolean.TRUE);
@@ -74,7 +77,13 @@ public class KeyGenerator {
         secretKeyTemplate.getUnwrap().setBooleanValue(Boolean.TRUE);
         secretKeyTemplate.getToken().setBooleanValue(Boolean.TRUE);
 
-        session.generateKey(keyMechanism, secretKeyTemplate);
+        try {
+            session.generateKey(keyMechanism, secretKeyTemplate);
+            generated = true;
+        } catch (TokenException e) {
+            System.out.println("AES key generation failed : " + e.getMessage());
+        }
+        return generated;
     }
 
     public static void generateDSAKeyPair(Session session) {
