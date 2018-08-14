@@ -1,5 +1,5 @@
 .idea
 input.txt
-target
-encrypted
-decrypted
+target/*
+encrypted/*
+decrypted/*

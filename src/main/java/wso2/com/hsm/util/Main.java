@@ -252,11 +252,39 @@ public class Main {
             case 4:
                 sign();
                 break;
+            case 5:
+                verify();
+                break;
+            case 6:
+                wrapKey();
+                break;
+            case 8:
+                unWrapKey();
+                break;
+            case 7:
+                hash();
+                break;
             default:
                 System.out.println("Invalid input!");
                 break;
         }
     }
+
+    private static void unWrapKey() {
+
+    }
+
+    private static void wrapKey() {
+
+    }
+
+    private static void verify() {
+    }
+
+    private static void hash() {
+
+    }
+
 
     private static void encrypt() throws IOException, TokenException {
         String encryptPrompt = "Select encryption mechanism \n" +
@@ -275,7 +303,7 @@ public class Main {
             AESSecretKey secretKey = (AESSecretKey) KeyRetriever.retrieveKey(session, secretKeyTemplate);
             byte[] initializationVector = new byte[16];
             byte[] encryptedData = Cipher.encryptAES(session, dataToEncrypt, secretKey, initializationVector, PKCS11Constants.CKM_AES_CBC_PAD);
-            //FileHandler.saveFile("encrypted/", encryptedData);
+            FileHandler.saveFile("encrypted/sample", encryptedData);
             System.out.println("Encrypted text : " + new String(encryptedData));
         } else {
             System.out.println("Invalid input");
@@ -339,7 +367,28 @@ public class Main {
         }
     }
 
-    private static void decrypt() {
+    private static void decrypt() throws IOException, TokenException {
+        String decryptPrompt = "Select decryption mechanism \n" +
+                "1. AES decryption \n" +
+                "Enter no. of the decryption type : ";
+        String input = getInput(decryptPrompt);
+        if (input.equals("1")) {
+            String pathPrompt = "Path of file to be decrypted : ";
+            String path = getInput(pathPrompt);
+            String keyLabelPrompt = "Label of the decryption key : ";
+            String keyLabel = getInput(keyLabelPrompt);
+            Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
+            byte[] dataToDecrypt = FileHandler.readFile(path);
+            AESSecretKey secretKeyTemplate = new AESSecretKey();
+            secretKeyTemplate.getLabel().setCharArrayValue(keyLabel.toCharArray());
+            AESSecretKey secretKey = (AESSecretKey) KeyRetriever.retrieveKey(session, secretKeyTemplate);
+            byte[] initializationVector = new byte[16];
+            byte[] decryptedData = Cipher.decryptAES(session, dataToDecrypt, secretKey, PKCS11Constants.CKM_AES_CBC_PAD, initializationVector);
+            FileHandler.saveFile("decrypted/sample.txt", decryptedData);
+            System.out.println("Decrypted text : " + new String(decryptedData));
+        } else {
+            System.out.println("Invalid input");
+        }
 
     }
 
@@ -351,7 +400,6 @@ public class Main {
     private static String getInput(String promptText) {
         Scanner scanner = new Scanner(System.in);
         System.out.print(promptText);
-        System.out.println();
 
         return scanner.nextLine();
     }

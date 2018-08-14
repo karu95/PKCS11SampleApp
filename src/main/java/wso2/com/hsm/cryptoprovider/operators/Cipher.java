@@ -29,7 +29,6 @@ public class Cipher {
         decryptionMechanism.setParameters(decryptInitializationVectorParameters);
         session.decryptInit(decryptionMechanism, decryptionKey);
         byte[] decryptedData = session.decrypt(dataToBeDecrypted);
-        System.out.println("Decrypted data :" + new String(decryptedData));
         return decryptedData;
     }
 

@@ -24,6 +24,7 @@ public class FileHandler {
     public static void saveFile(String path, byte[] data) throws IOException {
         File file = new File(path);
         if (!file.exists()) {
+            file.getParentFile().mkdirs();
             file.createNewFile();
         }
         FileOutputStream outputStream = new FileOutputStream(file);
