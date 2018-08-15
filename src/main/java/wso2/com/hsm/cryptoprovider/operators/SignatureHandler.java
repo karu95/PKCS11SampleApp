@@ -15,8 +15,8 @@ public class SignatureHandler {
             System.out.println("Here");
             session.signInit(signingMechanism, signKey);
             signature = session.sign(dataToSign);
-            String signatureString = new String(signature);
-            System.out.println(signatureString);
+            //String signatureString = new String(signature);
+            //System.out.println(signatureString);
         }
         return signature;
     }

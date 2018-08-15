@@ -14,7 +14,7 @@ public class HashGenerator {
             session.digestInit(hashingMechanism);
             byte[] digestVal = session.digest(dataToBeHashed);
             hashValue = new BigInteger(1, digestVal).toString(16);
-            System.out.println("Hash value " + hashValue);
+            //System.out.println("Hash value " + hashValue);
         }
         return hashValue;
     }

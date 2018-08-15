@@ -11,6 +11,8 @@ import iaik.pkcs.pkcs11.wrapper.PKCS11Constants;
 import wso2.com.hsm.cryptoprovider.keyhandlers.KeyGenerator;
 import wso2.com.hsm.cryptoprovider.keyhandlers.KeyRetriever;
 import wso2.com.hsm.cryptoprovider.operators.Cipher;
+import wso2.com.hsm.cryptoprovider.operators.HashGenerator;
+import wso2.com.hsm.cryptoprovider.operators.SignatureHandler;
 import wso2.com.hsm.cryptoprovider.util.SessionInitiator;
 
 import java.io.IOException;
@@ -258,10 +260,10 @@ public class Main {
             case 6:
                 wrapKey();
                 break;
-            case 8:
+            case 7:
                 unWrapKey();
                 break;
-            case 7:
+            case 8:
                 hash();
                 break;
             default:
@@ -278,11 +280,130 @@ public class Main {
 
     }
 
-    private static void verify() {
+    private static void sign() throws TokenException, IOException {
+        String promptSignMechanism = "Select sign/verify mechanism \n" +
+                "1. RSA \n" +
+                "Select mechanism : ";
+        String input = getInput(promptSignMechanism);
+        if (input.equals("1")) {
+            String filePathPrompt = "Path of file to be signed : ";
+            String filePath = getInput(filePathPrompt);
+            String privateKeyPrompt = "Label of the private key to sign : ";
+            String label = getInput(privateKeyPrompt);
+            Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
+            long mechanism = selectSignMechanism();
+            RSAPrivateKey privateKeyTemplate = new RSAPrivateKey();
+            privateKeyTemplate.getLabel().setCharArrayValue(label.toCharArray());
+            RSAPrivateKey privateKey = (RSAPrivateKey) KeyRetriever.retrieveKey(session, privateKeyTemplate);
+            byte[] signature = SignatureHandler.fullSign(session, FileHandler.readFile(filePath), mechanism, privateKey);
+            System.out.println("Signature : " + new String(signature));
+            SessionInitiator.closeSession(0);
+        } else {
+            System.out.println("Invalid input!!");
+        }
     }
 
-    private static void hash() {
+    private static void verify() throws TokenException, IOException {
+        String promptVerifyMechanism = "Select sign/verify mechanism \n" +
+                "1. RSA \n" +
+                "Select mechanism : ";
+        String input = getInput(promptVerifyMechanism);
+        if (input.equals("1")) {
+            String filePathPrompt = "Path of file to be verified : ";
+            String filePath = getInput(filePathPrompt);
+            String signaturePrompt = "String to be verified : ";
+            String signature = getInput(signaturePrompt);
+            String publicKeyPrompt = "Label of the public key to verify : ";
+            String label = getInput(publicKeyPrompt);
+            Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
+            long mechanism = selectSignMechanism();
+            RSAPublicKey publicKeyTemplate = new RSAPublicKey();
+            publicKeyTemplate.getLabel().setCharArrayValue(label.toCharArray());
+            RSAPublicKey publicKey = (RSAPublicKey) KeyRetriever.retrieveKey(session, publicKeyTemplate);
+            boolean verification = SignatureHandler.fullVerify(session, FileHandler.readFile(filePath), signature.getBytes(), mechanism, publicKey);
+            System.out.println("Verification : " + verification);
+            SessionInitiator.closeSession(0);
+        } else {
+            System.out.println("Invalid input!!");
+        }
+    }
 
+    private static long selectSignMechanism() {
+        String mechanismPrompt = "Select full sign/verify mechanism\n" +
+                "1. SHA-1\n" +
+                "2. SHA-256\n" +
+                "3. SHA-384\n" +
+                "4. SHA-512\n" +
+                "5. MD-2\n" +
+                "6. MD-5\n" +
+                "Selected hashing mechanism : ";
+        String selectedInput = getInput(mechanismPrompt);
+        long mechanism = 0;
+        switch (Integer.valueOf(selectedInput)) {
+            case 1:
+                mechanism = PKCS11Constants.CKM_SHA1_RSA_PKCS;
+                break;
+            case 2:
+                mechanism = PKCS11Constants.CKM_SHA256_RSA_PKCS;
+                break;
+            case 3:
+                mechanism = PKCS11Constants.CKM_SHA384_RSA_PKCS;
+                break;
+            case 4:
+                mechanism = PKCS11Constants.CKM_SHA512_RSA_PKCS;
+                break;
+            case 5:
+                mechanism = PKCS11Constants.CKM_MD2_RSA_PKCS;
+                break;
+            case 6:
+                mechanism = PKCS11Constants.CKM_MD5_RSA_PKCS;
+                break;
+            default:
+                System.out.println("Invalid input!");
+                break;
+        }
+        return mechanism;
+    }
+
+    private static void hash() throws IOException, TokenException {
+        String hashPrompt = "Select hashing mechanism \n" +
+                "1. SHA-1\n" +
+                "2. SHA-256\n" +
+                "3. SHA-384\n" +
+                "4. SHA-512\n" +
+                "5. MD-2\n" +
+                "6. MD-5\n" +
+                "Selected hashing mechanism : ";
+        String selectedInput = getInput(hashPrompt);
+        long mechanism = 0;
+        switch (Integer.valueOf(selectedInput)) {
+            case 1:
+                mechanism = PKCS11Constants.CKM_SHA_1;
+                break;
+            case 2:
+                mechanism = PKCS11Constants.CKM_SHA256;
+                break;
+            case 3:
+                mechanism = PKCS11Constants.CKM_SHA384;
+                break;
+            case 4:
+                mechanism = PKCS11Constants.CKM_SHA512;
+                break;
+            case 5:
+                mechanism = PKCS11Constants.CKM_MD2;
+                break;
+            case 6:
+                mechanism = PKCS11Constants.CKM_MD5;
+                break;
+            default:
+                System.out.println("Invalid input!");
+                break;
+        }
+        String filePrompt = "Path of file to be hashed : ";
+        String filePath = getInput(filePrompt);
+        Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
+        String hash = HashGenerator.hash(session, FileHandler.readFile(filePath), mechanism);
+        System.out.println("Hash value : " + hash);
     }
 
 
@@ -292,7 +413,7 @@ public class Main {
                 "Enter no. of encryption type : ";
         String input = getInput(encryptPrompt);
         if (input.equals("1")) {
-            String pathPrompt = "Path to file to be encrypted = ";
+            String pathPrompt = "Path of file to be encrypted = ";
             String path = getInput(pathPrompt);
             String keyLabelPrompt = "Label of the encryption key = ";
             String keyLabel = getInput(keyLabelPrompt);
@@ -327,8 +448,8 @@ public class Main {
             input = getInput(templatePromptText);
             String[] inputs = input.split(" ");
             if (inputs.length == 2) {
-                privateKeyTemplate.getLabel().setCharArrayValue(inputs[0].toCharArray());
-                publicKeyTemplate.getLabel().setCharArrayValue(inputs[0].toCharArray());
+                privateKeyTemplate.getLabel().setCharArrayValue((inputs[0]+"PrivateKey").toCharArray());
+                publicKeyTemplate.getLabel().setCharArrayValue((inputs[0]+"PublicKey").toCharArray());
 
                 publicKeyTemplate.getModulusBits().setLongValue(Long.valueOf(inputs[1]));
                 Session session = SessionInitiator.initiateSession(pkcs11Module, "12345", 0);
@@ -391,11 +512,6 @@ public class Main {
         }
 
     }
-
-    private static void sign() {
-
-    }
-
 
     private static String getInput(String promptText) {
         Scanner scanner = new Scanner(System.in);
